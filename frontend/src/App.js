@@ -1,109 +1,105 @@
-import React, { Component } from "react";
+import React, { useState, useEffect } from "react";
 import Modal from "./components/Modal";
 import axios from "axios";
 import { getCSRFToken } from './utils';  // Importer l'intercepteur
 
-// Configurer Axios avec l'intercepteur pour les tokens CSRF
+function App() {
+  // Initialisation de l'état avec useState
+  const [viewCompleted, setViewCompleted] = useState(false);
+  const [todoList, setTodoList] = useState([]);
+  const [modal, setModal] = useState(false);
+  const [activeItem, setActiveItem] = useState({
+    title: "",
+    description: "",
+    completed: false,
+  });
 
+  // useEffect remplace componentDidMount
+  useEffect(() => {
+    refreshList();
+  }, []);
 
-
-class App extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      viewCompleted: false,
-      todoList: [],
-      modal: false,
-      activeItem: {
-        title: "",
-        description: "",
-        completed: false,
-      },
-    };
-  }
-
-  componentDidMount() {
-    this.refreshList();
-  }
-
- 
-
-  refreshList = () => {
+  // Fonction pour rafraîchir la liste des tâches
+  const refreshList = () => {
     axios
       .get("http://localhost:8000/api/todos/")
-      .then((res) => this.setState({ todoList: res.data }))
+      .then((res) => setTodoList(res.data))
       .catch((err) => console.log(err));
   };
 
-  toggle = () => {
-    this.setState({ modal: !this.state.modal });
+  // Fonction pour basculer l'état de la modal
+  const toggle = () => {
+    setModal(!modal);
   };
 
-  handleSubmit = (item) => {
-    this.toggle();
+  // Fonction pour soumettre une nouvelle tâche ou mettre à jour une tâche existante
+  const handleSubmit = (item) => {
+    toggle();
 
     if (item.id) {
       axios
         .put(`http://localhost:8000/api/todos/${item.id}/`, item, {
           headers: {
-            "X-CSRFToken": getCSRFToken()
-          }
+            "X-CSRFToken": getCSRFToken(),
+          },
         })
-        .then((res) => this.refreshList())
+        .then((res) => refreshList())
         .catch((err) => console.log(err));
       return;
     }
     axios
       .post("http://localhost:8000/api/todos/", item, {
         headers: {
-          "X-CSRFToken": getCSRFToken()
-        }
+          "X-CSRFToken": getCSRFToken(),
+        },
       })
-      .then((res) => this.refreshList())
+      .then((res) => refreshList())
       .catch((err) => console.log(err));
   };
 
-  handleDelete = (item) => {
+  // Fonction pour supprimer une tâche
+  const handleDelete = (item) => {
     axios
-      .delete(`http://localhost:8000http://localhost:8000/api/todos/${item.id}/`, {
+      .delete(`http://localhost:8000/api/todos/${item.id}/`, {
         headers: {
-          "X-CSRFToken": getCSRFToken()
-        }
+          "X-CSRFToken": getCSRFToken(),
+        },
       })
-      .then((res) => this.refreshList())
+      .then((res) => refreshList())
       .catch((err) => console.log(err));
   };
 
-  createItem = () => {
+  // Fonction pour créer une nouvelle tâche (ouvre la modal)
+  const createItem = () => {
     const item = { title: "", description: "", completed: false };
-
-    this.setState({ activeItem: item, modal: !this.state.modal });
+    setActiveItem(item);
+    toggle();
   };
 
-  editItem = (item) => {
-    this.setState({ activeItem: item, modal: !this.state.modal });
+  // Fonction pour éditer une tâche existante (ouvre la modal)
+  const editItem = (item) => {
+    setActiveItem(item);
+    toggle();
   };
 
-  displayCompleted = (status) => {
-    if (status) {
-      return this.setState({ viewCompleted: true });
-    }
-
-    return this.setState({ viewCompleted: false });
+  // Fonction pour afficher les tâches complétées ou non
+  const displayCompleted = (status) => {
+    setViewCompleted(status);
   };
 
-  renderTabList = () => {
+  // Fonction pour rendre l'onglet de sélection (complété/incomplet)
+  const renderTabList = () => {
     return (
       <div className="nav nav-tabs">
         <span
-          onClick={() => this.displayCompleted(true)}
-          className={this.state.viewCompleted ? "nav-link active" : "nav-link"}
+          onClick={() => displayCompleted(true)}
+          className={viewCompleted ? "nav-link active" : "nav-link"}
         >
           Complete
         </span>
         <span
-          onClick={() => this.displayCompleted(false)}
-          className={this.state.viewCompleted ? "nav-link" : "nav-link active"}
+          onClick={() => displayCompleted(false)}
+          className={viewCompleted ? "nav-link" : "nav-link active"}
         >
           Incomplete
         </span>
@@ -111,9 +107,9 @@ class App extends Component {
     );
   };
 
-  renderItems = () => {
-    const { viewCompleted } = this.state;
-    const newItems = this.state.todoList.filter(
+  // Fonction pour rendre la liste des tâches
+  const renderItems = () => {
+    const newItems = todoList.filter(
       (item) => item.completed === viewCompleted
     );
 
@@ -124,7 +120,7 @@ class App extends Component {
       >
         <span
           className={`todo-title mr-2 ${
-            this.state.viewCompleted ? "completed-todo" : ""
+            viewCompleted ? "completed-todo" : ""
           }`}
           title={item.description}
         >
@@ -133,13 +129,13 @@ class App extends Component {
         <span>
           <button
             className="btn btn-secondary mr-2"
-            onClick={() => this.editItem(item)}
+            onClick={() => editItem(item)}
           >
             Edit
           </button>
           <button
             className="btn btn-danger"
-            onClick={() => this.handleDelete(item)}
+            onClick={() => handleDelete(item)}
           >
             Delete
           </button>
@@ -148,38 +144,37 @@ class App extends Component {
     ));
   };
 
-  render() {
-    return (
-      <main className="container">
-        <h1 className="text-white text-uppercase text-center my-4">Todo app</h1>
-        <div className="row">
-          <div className="col-md-6 col-sm-10 mx-auto p-0">
-            <div className="card p-3">
-              <div className="mb-4">
-                <button
-                  className="btn btn-primary"
-                  onClick={this.createItem}
-                >
-                  Add task
-                </button>
-              </div>
-              {this.renderTabList()}
-              <ul className="list-group list-group-flush border-top-0">
-                {this.renderItems()}
-              </ul>
+  // Rendu principal du composant
+  return (
+    <main className="container">
+      <h1 className="text-white text-uppercase text-center my-4">Todo app</h1>
+      <div className="row">
+        <div className="col-md-6 col-sm-10 mx-auto p-0">
+          <div className="card p-3">
+            <div className="mb-4">
+              <button
+                className="btn btn-primary"
+                onClick={createItem}
+              >
+                Add task
+              </button>
             </div>
+            {renderTabList()}
+            <ul className="list-group list-group-flush border-top-0">
+              {renderItems()}
+            </ul>
           </div>
         </div>
-        {this.state.modal ? (
-          <Modal
-            activeItem={this.state.activeItem}
-            toggle={this.toggle}
-            onSave={this.handleSubmit}
-          />
-        ) : null}
-      </main>
-    );
-  }
+      </div>
+      {modal ? (
+        <Modal
+          activeItem={activeItem}
+          toggle={toggle}
+          onSave={handleSubmit}
+        />
+      ) : null}
+    </main>
+  );
 }
 
 export default App;
